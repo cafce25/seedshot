@@ -10,14 +10,12 @@ import tkinter as tk
 import twitchAPI
 import requests
 import urllib.parse
-import yaml
 import base64
+from config import Config
 
 debug = True
 
-
-async def main():
-    global config
+def main():
     config = Config()
     print(config.safe_to_str())
 
@@ -26,14 +24,15 @@ async def main():
     frame = tk.Frame(root)
     frame.pack(expand=True, fill=tk.BOTH)
 
-    ss = SeedShot(frame)
+    ss = SeedShot(frame, config)
     ss.pack(expand=True, fill=tk.BOTH)
 
     root.mainloop()
 
 class SeedShot(tk.Canvas):
-    def __init__(self, parent):
+    def __init__(self, parent, config):
         super().__init__(parent)
+        self.config = config
 
         self.parent = parent
         # should we be taking screenshots and analyze them (enables with reroll button,
@@ -47,27 +46,27 @@ class SeedShot(tk.Canvas):
             self.watching = True
             self.loop()
 
-        async def on_stop_watch():
+        def on_stop_watch():
             self.watching = False
 
-            await upload()
-            await save()
+            self.upload()
+            self.save()
 
             # TODO factor out uploading, saving the image and posting the message to chat
 
 
         self.listener = keyboard.GlobalHotKeys({
-            config["hotkeys"]["reroll"]: on_reroll,
-            config["hotkeys"]["start-map"]: on_stop_watch,
+            self.config["hotkeys"]["reroll"]: on_reroll,
+            self.config["hotkeys"]["start-map"]: on_stop_watch,
         })
         self.listener.start()
 
 
-    async def save():
+    def save():
         self.map_img.save(f"screenshot.png")
 
-    async def upload():
-        headers = {'Authorization': f'Client-ID {config["imgur-client-id"]}'}
+    def upload():
+        headers = {'Authorization': f'Client-ID {self.config["imgur-client-id"]}'}
         img_byte_arr = io.BytesIO()
         self.map_img.save(img_byte_arr, format="PNG")
         img_byte_arr = img_byte_arr.getvalue()
@@ -85,10 +84,10 @@ class SeedShot(tk.Canvas):
             seed_img = Image.open("img/seed/059.png")
             self.map_img = Image.open("img/map/059.png")
         else:
-            seed_tmp = self.sct.grab(config["seed-box"])
+            seed_tmp = self.sct.grab(self.config["seed-box"])
             seed_img = Image.frombytes("RGB", seed_tmp.size, seed_tmp.bgra, "raw", "BGRX")
 
-            map_tmp  = self.sct.grab(config["map-box"])
+            map_tmp  = self.sct.grab(self.config["map-box"])
             self.map_img  = Image.frombytes("RGB", map_tmp.size, map_tmp.bgra, "raw", "BGRX")
 
         w_factor = self.parent.winfo_width() / self.map_img.width
@@ -111,47 +110,6 @@ class SeedShot(tk.Canvas):
         print("here")
         if self.watching:
             self.after(1000, self.loop)
-
-class Config:
-    def __init__(self, file_name="config.yaml", credentials_file_name="credentials.yaml"):
-        self.file_name = file_name
-        with open(self.file_name) as f:
-            self._config = yaml.load(f, Loader=yaml.Loader)
-
-        if not "imgur-client-id" in self._config:
-            with open(credentials_file_name) as f:
-                self._config["imgur-client-id"] = yaml.load(f, Loader=yaml.Loader)["imgur-client-id"]
-
-    def __getitem__(self, key):
-        return self._config[key]
-
-    def safe_to_str(self):
-        config = self._config.copy()
-        config["imgur-client-id"] = config["imgur-client-id"][:2] + (len(config["imgur-client-id"])-2) * "*"
-        return f"{config}"
-
-        # reroll_hotkey = "q" # or <ctrl>+<alt>+q
-        # stop_watch_hotkey = "c"
-
-        # Values are default for 1080p
-        # coordinates of the seed input field in factorio
-        # seedbox = {
-            # "left": 352,
-            # "top": 47,
-            # "width": 142,
-            # "height": 20,
-            # "mon": 1,
-        # }
-
-        # # coordinates of the map we want to share later
-        # mapbox = {
-            # "left": 546,
-            # "top": 76,
-            # "width": 1350,
-            # "height": 936,
-            # "mon": 1,
-        # }
-
 
 if __name__ == "__main__":
     main()
