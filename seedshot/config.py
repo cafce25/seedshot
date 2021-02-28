@@ -1,5 +1,7 @@
 import yaml
+
 SECRETS = ["imgur-client-id", "twitch-oauth-token"]
+
 class Config:
     def __init__(self, file_name="config.yaml", credentials_file_name="credentials.yaml"):
         self.file_name = file_name

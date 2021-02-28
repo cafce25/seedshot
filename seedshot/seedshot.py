@@ -1,16 +1,11 @@
 #!/usr/bin/env python
 from PIL import Image, ImageTk
 from pynput import keyboard
-import http.client
 import io
 import mss
-import mss.tools
 import pytesseract
 import tkinter as tk
-import twitchAPI
 import requests
-import urllib.parse
-import base64
 import json
 from config import Config
 
