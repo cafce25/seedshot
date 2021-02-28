@@ -11,10 +11,12 @@ import twitchAPI
 import requests
 import urllib.parse
 import base64
+import json
 from config import Config
 
-debug = True
+debug = False
 
+ENCODING = "utf-8"
 def main():
     config = Config()
     print(config.safe_to_str())
@@ -39,6 +41,9 @@ class SeedShot(tk.Canvas):
         # disables with stop_watch_hotkey)
         self.watching = False
         self.sct = mss.mss()
+        # limit tries to upload
+        self.timeout = 1
+        self.tries = 0
 
         def on_reroll():
             print("rerolling")
@@ -48,12 +53,8 @@ class SeedShot(tk.Canvas):
 
         def on_stop_watch():
             self.watching = False
-
-            self.upload()
             self.save()
-
-            # TODO factor out uploading, saving the image and posting the message to chat
-
+            self.upload(self.seed.strip())
 
         self.listener = keyboard.GlobalHotKeys({
             self.config["hotkeys"]["reroll"]: on_reroll,
@@ -62,10 +63,10 @@ class SeedShot(tk.Canvas):
         self.listener.start()
 
 
-    def save():
-        self.map_img.save(f"screenshot.png")
+    def save(self):
+        self.map_img.save(f"screenshot-{self.seed.strip()}.png")
 
-    def upload():
+    def upload(self, seed):
         headers = {'Authorization': f'Client-ID {self.config["imgur-client-id"]}'}
         img_byte_arr = io.BytesIO()
         self.map_img.save(img_byte_arr, format="PNG")
@@ -74,21 +75,46 @@ class SeedShot(tk.Canvas):
         payload = {'image': img_byte_arr}
         if not debug:
             response = requests.request("POST", "https://api.imgur.com/3/image", data=payload, headers=headers)
-            response_data = response.text.encode("utf-8")
+            response_data = json.loads(response.text.encode("utf-8"))
         else:
-            response_data = b'{"data":{"id":"9Z2sK5t","title":null,"description":null,"datetime":1614467962,"type":"image\\/png","animated":false,"width":742,"height":515,"size":357984,"views":0,"bandwidth":0,"vote":null,"favorite":false,"nsfw":null,"section":null,"account_url":null,"account_id":0,"is_ad":false,"in_most_viral":false,"has_sound":false,"tags":[],"ad_type":0,"ad_url":"","edited":"0","in_gallery":false,"deletehash":"hONRkceVHKRDbaF","name":"","link":"https:\\/\\/i.imgur.com\\/9Z2sK5t.png"},"success":true,"status":200}'
-        pass
+            response_data = json.loads(DUMMY_RESPONSE)
+
+        if response_data["success"]:
+            print(f'successful upload{response_data}')
+            self.timeout = 1
+            self.tries = 0
+            send_twitch_message(
+                    self.config["twitch-oauth-token"],
+                    self.config["twitch-user-name"],
+                    self.config["twitch-channel"],
+                    f'!command update !seed {seed} {response_data["data"]["link"]}')
+        else:
+            print(f'failed upload {self.tries} {self.timeout} {response_data}')
+            self.timeout *= 2
+            self.tries += 1
+            if tries < 6:
+                self.after(self.timeout * 1000, self.upload, seed)
+
+
 
     def loop(self):
         if debug:
-            seed_img = Image.open("img/seed/059.png")
-            self.map_img = Image.open("img/map/059.png")
+            import os
+            image_dir = os.path.realpath(
+                    os.path.join(
+                        os.path.dirname(__file__),
+                        ".."))
+
+            seed_img = Image.open(os.path.join(image_dir, "seed.png"))
+            self.map_img = Image.open(os.path.join(image_dir, "map.png"))
         else:
             seed_tmp = self.sct.grab(self.config["seed-box"])
-            seed_img = Image.frombytes("RGB", seed_tmp.size, seed_tmp.bgra, "raw", "BGRX")
+            seed_img = Image.frombytes(
+                    "RGB", seed_tmp.size, seed_tmp.bgra, "raw", "BGRX")
 
             map_tmp  = self.sct.grab(self.config["map-box"])
-            self.map_img  = Image.frombytes("RGB", map_tmp.size, map_tmp.bgra, "raw", "BGRX")
+            self.map_img  = Image.frombytes(
+                    "RGB", map_tmp.size, map_tmp.bgra, "raw", "BGRX")
 
         w_factor = self.parent.winfo_width() / self.map_img.width
         h_factor = self.parent.winfo_height() / self.map_img.height
@@ -107,9 +133,22 @@ class SeedShot(tk.Canvas):
         #print(pytesseract.image_to_string(seed_img))
 
         self.update()
-        print("here")
         if self.watching:
-            self.after(1000, self.loop)
+            self.after(100, self.loop)
 
+import socket
+import time
+
+def send_twitch_message(token, bot_name, channel, msg):
+    connection_data = ("irc.chat.twitch.tv", 6667)
+    with socket.socket() as server:
+        server = socket.socket()
+        server.connect(connection_data)
+        server.send(bytes(f"PASS {token}\r\n", ENCODING))
+        server.send(bytes(f"NICK {bot_name}\r\n", ENCODING))
+        server.send(bytes(f"JOIN #{channel}\r\n", ENCODING))
+        server.send(bytes(f"PRIVMSG #{channel} :{msg}\r\n", ENCODING))
+
+DUMMY_RESPONSE = b'{"data":{"id":"9Z2sK5t","title":null,"description":null,"datetime":1614467962,"type":"image\\/png","animated":false,"width":742,"height":515,"size":357984,"views":0,"bandwidth":0,"vote":null,"favorite":false,"nsfw":null,"section":null,"account_url":null,"account_id":0,"is_ad":false,"in_most_viral":false,"has_sound":false,"tags":[],"ad_type":0,"ad_url":"","edited":"0","in_gallery":false,"deletehash":"hONRkceVHKRDbaF","name":"","link":"https:\\/\\/i.imgur.com\\/9Z2sK5t.png"},"success":true,"status":200}'
 if __name__ == "__main__":
     main()
