@@ -67,7 +67,7 @@ class SeedShot(tk.Canvas):
         self.map_img.save(f"screenshot.png")
 
     async def upload():
-        headers = {'Authorization': f'Client-ID {config["client-id"]}'}
+        headers = {'Authorization': f'Client-ID {config["imgur-client-id"]}'}
         img_byte_arr = io.BytesIO()
         self.map_img.save(img_byte_arr, format="PNG")
         img_byte_arr = img_byte_arr.getvalue()
@@ -118,16 +118,16 @@ class Config:
         with open(self.file_name) as f:
             self._config = yaml.load(f, Loader=yaml.Loader)
 
-        if not "client-id" in self._config:
+        if not "imgur-client-id" in self._config:
             with open(credentials_file_name) as f:
-                self._config["client-id"] = yaml.load(f, Loader=yaml.Loader)["client-id"]
+                self._config["imgur-client-id"] = yaml.load(f, Loader=yaml.Loader)["imgur-client-id"]
 
     def __getitem__(self, key):
         return self._config[key]
 
     def safe_to_str(self):
         config = self._config.copy()
-        config["client-id"] = config["client-id"][:2] + (len(config["client-id"])-2) * "*"
+        config["imgur-client-id"] = config["imgur-client-id"][:2] + (len(config["imgur-client-id"])-2) * "*"
         return f"{config}"
 
         # reroll_hotkey = "q" # or <ctrl>+<alt>+q
