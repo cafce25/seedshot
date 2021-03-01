@@ -26,12 +26,13 @@ class Config:
     def __getitem__(self, key):
         return self._config[key]
 
-    def safe_secret(_, secret):
-        return secret[:2] + (len(secret)-2) * "*"
 
     def safe_to_str(self):
         config = self._config.copy()
         for secret in SECRETS:
-            config[secret] = self.safe_secret(config[secret])
+            config[secret] = safe_secret(config[secret])
 
         return f"{config}"
+
+def safe_secret(secret):
+    return secret[:2] + (len(secret)-2) * "*"
