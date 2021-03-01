@@ -1,0 +1,23 @@
+hotkeys:
+    reroll: <ctrl>+<shift>+r
+    start-map: c
+
+seed-box:
+    left: 352
+    top: 47
+    width: 142
+    height: 20
+    mon: 1
+
+map-box:
+    left: 546
+    top: 76
+    width: 1350
+    height: 936
+    mon: 1
+
+imgur-client-id: bb*************
+
+twitch-channel: "your_twitch_name"
+twitch-user-name: "your_bots_twitch_name"
+twitch-oauth-token: oauth:dh****************************
