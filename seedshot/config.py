@@ -8,6 +8,9 @@ class Config:
         with open(self.file_name) as f:
             self._config = yaml.load(f, Loader=yaml.Loader)
 
+        #lowercase channel name since that is what twitch expects
+        self._config["twitch-channel"] = self._config["twitch-channel"].lower()
+
         haveAllSecrets = True
         for secret in SECRETS:
             if not secret in self._config:
